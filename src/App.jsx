@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import './App.css'
-import { ethers } from 'ethers'
 import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
+import { ethers } from 'ethers'
 
 const BASE_CHAIN_HEX = '0x2105' // 8453
 const BASE_RPC = 'https://mainnet.base.org'
@@ -53,9 +53,20 @@ export default function App() {
   const [baseEth, setBaseEth] = useState('')
   const [noWallet, setNoWallet] = useState(false)
 
+  // ERC-20 state
+  const [tokenAddr, setTokenAddr] = useState('')
+  const [tokenInfo, setTokenInfo] = useState({ symbol: '', decimals: 18, balance: '' })
+  const [tokenMsg, setTokenMsg] = useState('')
+
+  // NFT mint state
+  const [nftAddr, setNftAddr] = useState('')
+  const [mintFn, setMintFn] = useState('mint')
+  const [mintQty, setMintQty] = useState('1')
+  const [mintMsg, setMintMsg] = useState('')
+
   const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
 
-  // Auto init provider state
+  // Init provider state
   useEffect(() => {
     const eth = window.ethereum
     if (!eth) { setNoWallet(true); return }
@@ -75,7 +86,7 @@ export default function App() {
     }
   }, [])
 
-  // Auto-reconnect saved session
+  // Auto-reconnect
   useEffect(() => {
     (async () => {
       const saved = localStorage.getItem(LS_PROVIDER)
@@ -97,7 +108,7 @@ export default function App() {
     })()
   }, [])
 
-  // Fetch Base balance on account/chain changes
+  // Base ETH balance
   useEffect(() => {
     async function fetchBalance() {
       try {
@@ -143,6 +154,7 @@ export default function App() {
       setAccount('')
       setChainId('')
       setBaseEth('')
+      setTokenInfo({ symbol: '', decimals: 18, balance: '' })
       setMessage('Disconnected')
     } catch {}
   }
@@ -177,11 +189,59 @@ export default function App() {
     }
   }
 
+  // ERC-20 balance fetch
+  const fetchToken = async () => {
+    try {
+      setTokenMsg('')
+      if (!ethers.isAddress(tokenAddr)) { setTokenMsg('Invalid token address'); return }
+      const abi = [
+        'function symbol() view returns (string)',
+        'function decimals() view returns (uint8)',
+        'function balanceOf(address) view returns (uint256)'
+      ]
+      const provider = new ethers.JsonRpcProvider(BASE_RPC)
+      const erc20 = new ethers.Contract(tokenAddr, abi, provider)
+      const [sym, dec, bal] = await Promise.all([
+        erc20.symbol().catch(() => ''),
+        erc20.decimals().catch(() => 18),
+        erc20.balanceOf(account || ethers.ZeroAddress)
+      ])
+      let balanceStr = '0'
+      if (account) {
+        balanceStr = ethers.formatUnits(bal, dec)
+      }
+      setTokenInfo({ symbol: sym || 'ERC20', decimals: Number(dec), balance: balanceStr })
+    } catch (e) {
+      setTokenMsg(e?.message || 'Failed to fetch token')
+      setTokenInfo({ symbol: '', decimals: 18, balance: '' })
+    }
+  }
+
+  // NFT mint (generic)
+  const mintNft = async () => {
+    try {
+      setMintMsg('')
+      if (!account) { setMintMsg('Connect wallet first'); return }
+      if (!ethers.isAddress(nftAddr)) { setMintMsg('Invalid NFT contract'); return }
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      const qty = mintQty && Number(mintQty) ? BigInt(mintQty) : undefined
+      const abi = qty ? [`function ${mintFn}(uint256)`] : [`function ${mintFn}()`]
+      const c = new ethers.Contract(nftAddr, abi, signer)
+      const tx = qty ? await c[mintFn](qty) : await c[mintFn]()
+      setMintMsg('Submitted: ' + tx.hash)
+      const rc = await tx.wait()
+      setMintMsg('Minted in block ' + rc.blockNumber)
+    } catch (e) {
+      setMintMsg(e?.shortMessage || e?.message || 'Mint failed')
+    }
+  }
+
   return (
     <main style={{maxWidth: 880, margin: '40px auto', padding: '0 16px', lineHeight: 1.6}}>
       <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
         <h1 style={{margin: 0}}> The Cursed Faction In-Game Banking System </h1>
-        <div style={{display: 'flex', gap: 8}}>
+        <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
           {!account && <button onClick={connect}>Connect Wallet</button>}
           {!account && <button onClick={handleCoinbase}>Coinbase Wallet</button>}
           {!account && <button onClick={openCoinbaseDeepLink}>Open in Coinbase Wallet</button>}
@@ -210,7 +270,34 @@ export default function App() {
         </p>
       )}
 
-      <p>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, or burned  every action shaping a self-sustaining economy designed to reward its community.</p>
+      {/* ERC-20 balances */}
+      <section style={{marginTop: 24}}>
+        <h2>Token balance (Base)</h2>
+        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+          <input style={{flex:'1 1 320px'}} placeholder="ERC-20 token address (Base)" value={tokenAddr} onChange={e=>setTokenAddr(e.target.value)} />
+          <button onClick={fetchToken} disabled={!tokenAddr}>Fetch</button>
+        </div>
+        {tokenMsg && <p style={{color:'#900'}}>{tokenMsg}</p>}
+        {tokenInfo.balance && (
+          <p>Balance: {tokenInfo.balance} {tokenInfo.symbol || 'ERC20'}</p>
+        )}
+      </section>
+
+      {/* NFT mint */}
+      <section style={{marginTop: 24}}>
+        <h2>NFT Mint</h2>
+        <div style={{display:'grid', gap:8, gridTemplateColumns:'1fr 1fr 1fr', maxWidth:880}}>
+          <input placeholder="NFT contract address" value={nftAddr} onChange={e=>setNftAddr(e.target.value)} />
+          <input placeholder="Function name (e.g., mint)" value={mintFn} onChange={e=>setMintFn(e.target.value)} />
+          <input placeholder="Quantity (optional)" value={mintQty} onChange={e=>setMintQty(e.target.value)} />
+        </div>
+        <div style={{marginTop:8}}>
+          <button onClick={mintNft} disabled={!nftAddr || !mintFn}>Mint</button>
+          {mintMsg && <p>{mintMsg}</p>}
+        </div>
+      </section>
+
+      <p style={{marginTop: 32}}>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, or burned  every action shaping a self-sustaining economy designed to reward its community.</p>
       <p>At its core lies an AI-operated banking system, engineered to remove human error and run with flawless precision. Protected by Legion Cyber-Circuitry, this intelligence operates with 24/7 autonomous detection and defense, ensuring every transaction is secure, transparent, and unstoppable.</p>
       <p>Every move strengthens the system:</p>
       <ul>

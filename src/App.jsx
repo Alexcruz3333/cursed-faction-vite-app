@@ -6,6 +6,8 @@ const BASE_CHAIN_HEX = '0x2105' // 8453
 const BASE_RPC = 'https://mainnet.base.org'
 const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
 const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
+const LS_ACCOUNT = 'cf_account'
+const LS_PROVIDER = 'cf_provider' // 'coinbase' | 'injected'
 
 function coinbaseConnect(setAccount, setChainId, setMessage) {
   try {
@@ -14,7 +16,10 @@ function coinbaseConnect(setAccount, setChainId, setMessage) {
     provider
       .request({ method: 'eth_requestAccounts' })
       .then((accs) => {
-        setAccount(accs?.[0] ?? '')
+        const addr = accs?.[0] ?? ''
+        setAccount(addr)
+        localStorage.setItem(LS_ACCOUNT, addr)
+        localStorage.setItem(LS_PROVIDER, 'coinbase')
         return provider.request({ method: 'eth_chainId' })
       })
       .then((cid) => {
@@ -41,7 +46,7 @@ function formatEthFromHex(weiHex) {
 }
 
 export default function App() {
-  const [account, setAccount] = useState('')
+  const [account, setAccount] = useState(localStorage.getItem(LS_ACCOUNT) || '')
   const [chainId, setChainId] = useState('')
   const [message, setMessage] = useState('')
   const [baseEth, setBaseEth] = useState('')
@@ -49,6 +54,7 @@ export default function App() {
 
   const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
 
+  // Auto init provider state
   useEffect(() => {
     const eth = window.ethereum
     if (!eth) { setNoWallet(true); return }
@@ -68,6 +74,29 @@ export default function App() {
     }
   }, [])
 
+  // Auto-reconnect saved session
+  useEffect(() => {
+    (async () => {
+      const saved = localStorage.getItem(LS_PROVIDER)
+      if (!saved) return
+      try {
+        if (saved === 'coinbase') {
+          coinbaseConnect(setAccount, setChainId, setMessage)
+        } else if (saved === 'injected' && window.ethereum) {
+          const accs = await window.ethereum.request({ method: 'eth_accounts' })
+          const addr = accs?.[0]
+          if (addr) {
+            setAccount(addr)
+            localStorage.setItem(LS_ACCOUNT, addr)
+            setChainId(await window.ethereum.request({ method: 'eth_chainId' }))
+            setMessage('Reconnected')
+          }
+        }
+      } catch {}
+    })()
+  }, [])
+
+  // Fetch Base balance on account/chain changes
   useEffect(() => {
     async function fetchBalance() {
       try {
@@ -81,9 +110,7 @@ export default function App() {
           const json = await res.json()
           setBaseEth(formatEthFromHex(json?.result))
         }
-      } catch {
-        setBaseEth('')
-      }
+      } catch { setBaseEth('') }
     }
     fetchBalance()
   }, [account, onBase])
@@ -96,13 +123,27 @@ export default function App() {
         return
       }
       const accs = await window.ethereum.request({ method: 'eth_requestAccounts' })
-      setAccount(accs?.[0] ?? '')
+      const addr = accs?.[0] ?? ''
+      setAccount(addr)
+      localStorage.setItem(LS_ACCOUNT, addr)
+      localStorage.setItem(LS_PROVIDER, 'injected')
       const cid = await window.ethereum.request({ method: 'eth_chainId' })
       setChainId(cid)
       setMessage('Connected')
     } catch (err) {
       setMessage(err?.message || 'Connect failed')
     }
+  }
+
+  const disconnect = () => {
+    try {
+      localStorage.removeItem(LS_ACCOUNT)
+      localStorage.removeItem(LS_PROVIDER)
+      setAccount('')
+      setChainId('')
+      setBaseEth('')
+      setMessage('Disconnected')
+    } catch {}
   }
 
   const handleCoinbase = () => coinbaseConnect(setAccount, setChainId, setMessage)
@@ -140,10 +181,11 @@ export default function App() {
       <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
         <h1 style={{margin: 0}}> The Cursed Faction In-Game Banking System </h1>
         <div style={{display: 'flex', gap: 8}}>
-          <button onClick={connect}>{account ? account.slice(0,6)+''+account.slice(-4) : 'Connect Wallet'}</button>
-          <button onClick={handleCoinbase}>Coinbase Wallet</button>
-          <button onClick={openCoinbaseDeepLink}>Open in Coinbase Wallet</button>
-          <button onClick={switchToBase} disabled={!account || onBase}>{onBase ? 'On Base' : 'Switch to Base'}</button>
+          {!account && <button onClick={connect}>Connect Wallet</button>}
+          {!account && <button onClick={handleCoinbase}>Coinbase Wallet</button>}
+          {!account && <button onClick={openCoinbaseDeepLink}>Open in Coinbase Wallet</button>}
+          {account && <button onClick={switchToBase} disabled={onBase}>{onBase ? 'On Base' : 'Switch to Base'}</button>}
+          {account && <button onClick={disconnect}>Disconnect</button>}
         </div>
       </header>
 

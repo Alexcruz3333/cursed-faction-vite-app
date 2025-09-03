@@ -1,33 +1,33 @@
 import React, { useEffect, useState } from 'react'
 import './App.css'
-import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
-import { ethers } from 'ethers'
 
 const BASE_CHAIN_HEX = '0x2105' // 8453
 const BASE_RPC = 'https://mainnet.base.org'
 const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
 const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
+
+// LocalStorage keys
 const LS_ACCOUNT = 'cf_account'
 const LS_PROVIDER = 'cf_provider' // 'coinbase' | 'injected'
+const LS_TOKEN_ADDR = 'cf_token_addr'
+const LS_NFT_ADDR = 'cf_nft_addr'
+const LS_MINT_FN = 'cf_mint_fn'
+const LS_MINT_QTY = 'cf_mint_qty'
+const LS_CUSTOM_ABI = 'cf_custom_abi'
 
-function coinbaseConnect(setAccount, setChainId, setMessage) {
+async function coinbaseConnect(setAccount, setChainId, setMessage) {
   try {
+    const { default: CoinbaseWalletSDK } = await import('@coinbase/wallet-sdk')
     const sdk = new CoinbaseWalletSDK({ appName: 'Cursed Faction' })
     const provider = sdk.makeWeb3Provider(BASE_RPC, 8453)
-    provider
-      .request({ method: 'eth_requestAccounts' })
-      .then((accs) => {
-        const addr = accs?.[0] ?? ''
-        setAccount(addr)
-        localStorage.setItem(LS_ACCOUNT, addr)
-        localStorage.setItem(LS_PROVIDER, 'coinbase')
-        return provider.request({ method: 'eth_chainId' })
-      })
-      .then((cid) => {
-        setChainId(cid)
-        setMessage('Connected with Coinbase Wallet')
-      })
-      .catch((err) => setMessage(err?.message || 'Coinbase connect failed'))
+    const accs = await provider.request({ method: 'eth_requestAccounts' })
+    const addr = accs?.[0] ?? ''
+    setAccount(addr)
+    localStorage.setItem(LS_ACCOUNT, addr)
+    localStorage.setItem(LS_PROVIDER, 'coinbase')
+    const cid = await provider.request({ method: 'eth_chainId' })
+    setChainId(cid)
+    setMessage('Connected with Coinbase Wallet')
   } catch (e) {
     setMessage(e?.message || 'Coinbase connect failed')
   }
@@ -53,24 +53,31 @@ export default function App() {
   const [baseEth, setBaseEth] = useState('')
   const [noWallet, setNoWallet] = useState(false)
 
-  // ERC-20 state
-  const [tokenAddr, setTokenAddr] = useState('')
+  // ERC-20 state (persisted)
+  const [tokenAddr, setTokenAddr] = useState(localStorage.getItem(LS_TOKEN_ADDR) || '')
   const [tokenInfo, setTokenInfo] = useState({ symbol: '', decimals: 18, balance: '' })
   const [tokenMsg, setTokenMsg] = useState('')
 
-  // NFT mint state
-  const [nftAddr, setNftAddr] = useState('')
-  const [mintFn, setMintFn] = useState('mint')
-  const [mintQty, setMintQty] = useState('1')
+  // NFT mint state (persisted)
+  const [nftAddr, setNftAddr] = useState(localStorage.getItem(LS_NFT_ADDR) || '')
+  const [mintFn, setMintFn] = useState(localStorage.getItem(LS_MINT_FN) || 'mint')
+  const [mintQty, setMintQty] = useState(localStorage.getItem(LS_MINT_QTY) || '1')
+  const [customAbi, setCustomAbi] = useState(localStorage.getItem(LS_CUSTOM_ABI) || '')
   const [mintMsg, setMintMsg] = useState('')
 
   const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
+
+  // Persist inputs reactively
+  useEffect(() => { localStorage.setItem(LS_TOKEN_ADDR, tokenAddr || '') }, [tokenAddr])
+  useEffect(() => { localStorage.setItem(LS_NFT_ADDR, nftAddr || '') }, [nftAddr])
+  useEffect(() => { localStorage.setItem(LS_MINT_FN, mintFn || '') }, [mintFn])
+  useEffect(() => { localStorage.setItem(LS_MINT_QTY, mintQty || '') }, [mintQty])
+  useEffect(() => { localStorage.setItem(LS_CUSTOM_ABI, customAbi || '') }, [customAbi])
 
   // Init provider state
   useEffect(() => {
     const eth = window.ethereum
     if (!eth) { setNoWallet(true); return }
-
     eth.request({ method: 'eth_chainId' }).then(setChainId).catch(() => {})
 
     const handleAccounts = (accs) => setAccount(accs?.[0] ?? '')
@@ -93,7 +100,7 @@ export default function App() {
       if (!saved) return
       try {
         if (saved === 'coinbase') {
-          coinbaseConnect(setAccount, setChainId, setMessage)
+          await coinbaseConnect(setAccount, setChainId, setMessage)
         } else if (saved === 'injected' && window.ethereum) {
           const accs = await window.ethereum.request({ method: 'eth_accounts' })
           const addr = accs?.[0]
@@ -159,7 +166,7 @@ export default function App() {
     } catch {}
   }
 
-  const handleCoinbase = () => coinbaseConnect(setAccount, setChainId, setMessage)
+  const handleCoinbase = () => { coinbaseConnect(setAccount, setChainId, setMessage) }
   const openCoinbaseDeepLink = () => window.open(COINBASE_DAPP_LINK, '_blank')
 
   const switchToBase = async () => {
@@ -189,10 +196,11 @@ export default function App() {
     }
   }
 
-  // ERC-20 balance fetch
+  // ERC-20 balance fetch (lazy-load ethers)
   const fetchToken = async () => {
     try {
       setTokenMsg('')
+      const { ethers } = await import('ethers')
       if (!ethers.isAddress(tokenAddr)) { setTokenMsg('Invalid token address'); return }
       const abi = [
         'function symbol() view returns (string)',
@@ -208,7 +216,7 @@ export default function App() {
       ])
       let balanceStr = '0'
       if (account) {
-        balanceStr = ethers.formatUnits(bal, dec)
+        balanceStr = ethers.formatUnits(bal, Number(dec))
       }
       setTokenInfo({ symbol: sym || 'ERC20', decimals: Number(dec), balance: balanceStr })
     } catch (e) {
@@ -217,18 +225,28 @@ export default function App() {
     }
   }
 
-  // NFT mint (generic)
+  // NFT mint (generic) with optional custom ABI
   const mintNft = async () => {
     try {
       setMintMsg('')
+      const { ethers } = await import('ethers')
       if (!account) { setMintMsg('Connect wallet first'); return }
       if (!ethers.isAddress(nftAddr)) { setMintMsg('Invalid NFT contract'); return }
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
-      const qty = mintQty && Number(mintQty) ? BigInt(mintQty) : undefined
-      const abi = qty ? [`function ${mintFn}(uint256)`] : [`function ${mintFn}()`]
+
+      let abi
+      if (customAbi) {
+        try { abi = JSON.parse(customAbi) } catch { setMintMsg('Invalid ABI JSON'); return }
+      } else {
+        const qty = mintQty && Number(mintQty) ? true : false
+        abi = qty ? [`function ${mintFn}(uint256)`] : [`function ${mintFn}()`]
+      }
+
       const c = new ethers.Contract(nftAddr, abi, signer)
-      const tx = qty ? await c[mintFn](qty) : await c[mintFn]()
+      const tx = (customAbi && mintQty && Number(mintQty))
+        ? await c[mintFn](BigInt(mintQty))
+        : (customAbi ? await c[mintFn]() : (Number(mintQty) ? await c[mintFn](BigInt(mintQty)) : await c[mintFn]()))
       setMintMsg('Submitted: ' + tx.hash)
       const rc = await tx.wait()
       setMintMsg('Minted in block ' + rc.blockNumber)
@@ -290,6 +308,9 @@ export default function App() {
           <input placeholder="NFT contract address" value={nftAddr} onChange={e=>setNftAddr(e.target.value)} />
           <input placeholder="Function name (e.g., mint)" value={mintFn} onChange={e=>setMintFn(e.target.value)} />
           <input placeholder="Quantity (optional)" value={mintQty} onChange={e=>setMintQty(e.target.value)} />
+        </div>
+        <div style={{marginTop:8}}>
+          <textarea placeholder="Optional ABI JSON (array) for custom mint function" value={customAbi} onChange={e=>setCustomAbi(e.target.value)} style={{width:'100%', minHeight:120}} />
         </div>
         <div style={{marginTop:8}}>
           <button onClick={mintNft} disabled={!nftAddr || !mintFn}>Mint</button>

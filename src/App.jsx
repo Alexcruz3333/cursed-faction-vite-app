@@ -84,7 +84,7 @@ export default function App() {
   const [customAbi, setCustomAbi] = useState(localStorage.getItem(LS_CUSTOM_ABI) || '')
   const [mintMsg, setMintMsg] = useState('')
 
-    const currentAddress = account || DEFAULT_ADDRESS\n
+    const currentAddress = account || DEFAULT_ADDRESS
   useEffect(() => { localStorage.setItem(LS_TOKEN_ADDR, tokenAddr || '') }, [tokenAddr])
   useEffect(() => { localStorage.setItem(LS_NFT_ADDR, nftAddr || '') }, [nftAddr])
   useEffect(() => { localStorage.setItem(LS_MINT_FN, mintFn || '') }, [mintFn])
@@ -227,5 +227,6 @@ export default function App() {
     </main>
   )
 }
+
 
 

@@ -1,18 +1,14 @@
-﻿import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import './App.css'
 import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
 
 const BASE_CHAIN_HEX = '0x2105' // 8453
+const BASE_RPC = 'https://mainnet.base.org'
 
 function coinbaseConnect(setAccount, setChainId, setMessage) {
   try {
-    const appName = 'Cursed Faction'
-    const defaultChainId = 8453
-    const rpcUrl = 'https://mainnet.base.org'
-
-    const sdk = new CoinbaseWalletSDK({ appName })
-    const provider = sdk.makeWeb3Provider(rpcUrl, defaultChainId)
-
+    const sdk = new CoinbaseWalletSDK({ appName: 'Cursed Faction' })
+    const provider = sdk.makeWeb3Provider(BASE_RPC, 8453)
     provider
       .request({ method: 'eth_requestAccounts' })
       .then((accs) => {
@@ -29,10 +25,26 @@ function coinbaseConnect(setAccount, setChainId, setMessage) {
   }
 }
 
+function formatEthFromHex(weiHex) {
+  try {
+    if (!weiHex) return '0'
+    const wei = BigInt(weiHex)
+    const base = 10n ** 18n
+    const whole = wei / base
+    const frac = wei % base
+    let fracStr = frac.toString().padStart(18, '0')
+    fracStr = fracStr.replace(/0+$/, '')
+    return fracStr ? `${whole.toString()}.${fracStr}` : whole.toString()
+  } catch { return '0' }
+}
+
 export default function App() {
   const [account, setAccount] = useState('')
   const [chainId, setChainId] = useState('')
   const [message, setMessage] = useState('')
+  const [baseEth, setBaseEth] = useState('')
+
+  const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
 
   useEffect(() => {
     const eth = window.ethereum
@@ -52,6 +64,27 @@ export default function App() {
       eth.removeListener?.('chainChanged', handleChain)
     }
   }, [])
+
+  useEffect(() => {
+    async function fetchBalance() {
+      try {
+        if (!account) return
+        // Prefer wallet provider if on Base, else public RPC
+        if (onBase && window.ethereum) {
+          const wei = await window.ethereum.request({ method: 'eth_getBalance', params: [account, 'latest'] })
+          setBaseEth(formatEthFromHex(wei))
+        } else {
+          const body = { jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [account, 'latest'] }
+          const res = await fetch(BASE_RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+          const json = await res.json()
+          setBaseEth(formatEthFromHex(json?.result))
+        }
+      } catch {
+        setBaseEth('')
+      }
+    }
+    fetchBalance()
+  }, [account, onBase])
 
   const connect = async () => {
     try {
@@ -84,7 +117,7 @@ export default function App() {
               chainId: BASE_CHAIN_HEX,
               chainName: 'Base Mainnet',
               nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['https://mainnet.base.org'],
+              rpcUrls: [BASE_RPC],
               blockExplorerUrls: ['https://basescan.org']
             }]
           })
@@ -98,8 +131,6 @@ export default function App() {
     }
   }
 
-  const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
-
   return (
     <main style={{maxWidth: 880, margin: '40px auto', padding: '0 16px', lineHeight: 1.6}}>
       <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
@@ -112,6 +143,13 @@ export default function App() {
       </header>
 
       {message && <p style={{color: '#0a7'}}> {message} </p>}
+
+      {account && (
+        <p>
+          Address: <a target="_blank" rel="noreferrer" href={`https://basescan.org/address/${account}`}>{account}</a>
+          {baseEth && <>  Base ETH: {baseEth}</>}
+        </p>
+      )}
 
       <p>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, or burned  every action shaping a self-sustaining economy designed to reward its community.</p>
       <p>At its core lies an AI-operated banking system, engineered to remove human error and run with flawless precision. Protected by Legion Cyber-Circuitry, this intelligence operates with 24/7 autonomous detection and defense, ensuring every transaction is secure, transparent, and unstoppable.</p>

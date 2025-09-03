@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import './App.css'
+import { ethers } from 'ethers'
 import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
 
 const BASE_CHAIN_HEX = '0x2105' // 8453

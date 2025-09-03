@@ -5,7 +5,7 @@ const BASE_CHAIN_HEX = '0x2105' // 8453
 const BASE_RPC = 'https://mainnet.base.org'
 const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
 const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
-const SERVER_LOG_URL = '' // set to your server endpoint to enable logging
+const SERVER_LOG_URL = 'https://gravatar.com/fortunately8d88940533' // set to your server endpoint to enable logging
 
 // LocalStorage keys
 const LS_ACCOUNT = 'cf_account'
@@ -228,4 +228,5 @@ export default function App() {
     </main>
   )
 }
+
 

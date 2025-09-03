@@ -4,6 +4,8 @@ import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
 
 const BASE_CHAIN_HEX = '0x2105' // 8453
 const BASE_RPC = 'https://mainnet.base.org'
+const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
+const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
 
 function coinbaseConnect(setAccount, setChainId, setMessage) {
   try {
@@ -43,12 +45,13 @@ export default function App() {
   const [chainId, setChainId] = useState('')
   const [message, setMessage] = useState('')
   const [baseEth, setBaseEth] = useState('')
+  const [noWallet, setNoWallet] = useState(false)
 
   const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
 
   useEffect(() => {
     const eth = window.ethereum
-    if (!eth) return
+    if (!eth) { setNoWallet(true); return }
 
     eth.request({ method: 'eth_chainId' }).then(setChainId).catch(() => {})
 
@@ -69,7 +72,6 @@ export default function App() {
     async function fetchBalance() {
       try {
         if (!account) return
-        // Prefer wallet provider if on Base, else public RPC
         if (onBase && window.ethereum) {
           const wei = await window.ethereum.request({ method: 'eth_getBalance', params: [account, 'latest'] })
           setBaseEth(formatEthFromHex(wei))
@@ -89,7 +91,8 @@ export default function App() {
   const connect = async () => {
     try {
       if (!window.ethereum) {
-        setMessage('No EVM wallet detected. Install Coinbase Wallet or MetaMask.')
+        setNoWallet(true)
+        setMessage('No EVM wallet detected. Install Coinbase Wallet or MetaMask, or use the Coinbase deep link below.')
         return
       }
       const accs = await window.ethereum.request({ method: 'eth_requestAccounts' })
@@ -103,6 +106,7 @@ export default function App() {
   }
 
   const handleCoinbase = () => coinbaseConnect(setAccount, setChainId, setMessage)
+  const openCoinbaseDeepLink = () => window.open(COINBASE_DAPP_LINK, '_blank')
 
   const switchToBase = async () => {
     try {
@@ -138,9 +142,21 @@ export default function App() {
         <div style={{display: 'flex', gap: 8}}>
           <button onClick={connect}>{account ? account.slice(0,6)+''+account.slice(-4) : 'Connect Wallet'}</button>
           <button onClick={handleCoinbase}>Coinbase Wallet</button>
+          <button onClick={openCoinbaseDeepLink}>Open in Coinbase Wallet</button>
           <button onClick={switchToBase} disabled={!account || onBase}>{onBase ? 'On Base' : 'Switch to Base'}</button>
         </div>
       </header>
+
+      {noWallet && (
+        <div style={{background:'#fee', color:'#900', padding: '12px', borderRadius: 8, marginTop: 12}}>
+          <strong>No wallet detected.</strong> Install a wallet or open directly in Coinbase Wallet.
+          <div style={{marginTop: 8, display:'flex', gap: 8, flexWrap:'wrap'}}>
+            <a href="https://chromewebstore.google.com/detail/coinbase-wallet-extension/hnfanknocfeofbddgcijnmhnfnkdnaad" target="_blank" rel="noreferrer">Get Coinbase Wallet Extension</a>
+            <a href="https://metamask.io/download/" target="_blank" rel="noreferrer">Get MetaMask</a>
+            <a href={COINBASE_DAPP_LINK} target="_blank" rel="noreferrer">Open in Coinbase Wallet</a>
+          </div>
+        </div>
+      )}
 
       {message && <p style={{color: '#0a7'}}> {message} </p>}
 

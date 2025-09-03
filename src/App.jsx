@@ -1,31 +1,35 @@
-﻿import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
+﻿import React, { useEffect, useState } from 'react'
+import './App.css'
+import CoinbaseWalletSDK from '@coinbase/wallet-sdk'
+
+const BASE_CHAIN_HEX = '0x2105' // 8453
 
 function coinbaseConnect(setAccount, setChainId, setMessage) {
   try {
     const appName = 'Cursed Faction'
-    const appLogoUrl = 'https://avatars.githubusercontent.com/u/1885080?s=200&v=4'
     const defaultChainId = 8453
     const rpcUrl = 'https://mainnet.base.org'
 
-    const sdk = new CoinbaseWalletSDK({ appName, appLogoUrl })
+    const sdk = new CoinbaseWalletSDK({ appName })
     const provider = sdk.makeWeb3Provider(rpcUrl, defaultChainId)
 
-    provider.request({ method: 'eth_requestAccounts' }).then((accs) => {
-      setAccount(accs?.[0] ?? '')
-      return provider.request({ method: 'eth_chainId' })
-    }).then((cid) => {
-      setChainId(cid)
-      setMessage('Connected with Coinbase Wallet')
-    }).catch((err) => setMessage(err?.message || 'Coinbase connect failed'))
+    provider
+      .request({ method: 'eth_requestAccounts' })
+      .then((accs) => {
+        setAccount(accs?.[0] ?? '')
+        return provider.request({ method: 'eth_chainId' })
+      })
+      .then((cid) => {
+        setChainId(cid)
+        setMessage('Connected with Coinbase Wallet')
+      })
+      .catch((err) => setMessage(err?.message || 'Coinbase connect failed'))
   } catch (e) {
     setMessage(e?.message || 'Coinbase connect failed')
   }
-}\nimport React, { useEffect, useState } from 'react'
-import './App.css'
+}
 
-const BASE_CHAIN_HEX = '0x2105' // 8453
-
-export default function App() {\n  // Coinbase connect helper\n  const handleCoinbase = () => coinbaseConnect(setAccount, setChainId, setMessage);
+export default function App() {
   const [account, setAccount] = useState('')
   const [chainId, setChainId] = useState('')
   const [message, setMessage] = useState('')
@@ -65,12 +69,13 @@ export default function App() {\n  // Coinbase connect helper\n  const handleCoi
     }
   }
 
+  const handleCoinbase = () => coinbaseConnect(setAccount, setChainId, setMessage)
+
   const switchToBase = async () => {
     try {
       await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: BASE_CHAIN_HEX }] })
       setMessage('Switched to Base')
     } catch (err) {
-      // 4902 = chain not added
       if (err?.code === 4902) {
         try {
           await window.ethereum.request({
@@ -99,8 +104,9 @@ export default function App() {\n  // Coinbase connect helper\n  const handleCoi
     <main style={{maxWidth: 880, margin: '40px auto', padding: '0 16px', lineHeight: 1.6}}>
       <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
         <h1 style={{margin: 0}}> The Cursed Faction In-Game Banking System </h1>
-        <div style={{display: 'flex', gap: 8}}><button onClick={handleCoinbase}>Coinbase Wallet</button>
+        <div style={{display: 'flex', gap: 8}}>
           <button onClick={connect}>{account ? account.slice(0,6)+''+account.slice(-4) : 'Connect Wallet'}</button>
+          <button onClick={handleCoinbase}>Coinbase Wallet</button>
           <button onClick={switchToBase} disabled={!account || onBase}>{onBase ? 'On Base' : 'Switch to Base'}</button>
         </div>
       </header>
@@ -121,5 +127,3 @@ export default function App() {\n  // Coinbase connect helper\n  const handleCoi
     </main>
   )
 }
-
-

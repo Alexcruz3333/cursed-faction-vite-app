@@ -5,8 +5,7 @@ const BASE_CHAIN_HEX = '0x2105'
 const BASE_RPC = 'https://mainnet.base.org'
 const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
 const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
-const SERVER_LOG_URL = 'https://gravatar.com/fortunately8d88940533'
-
+ DEFAULT_ADDRESS = '0x4f8cf6b1397ef632Edf654C5E2d1c378F518F790'\n
 const LS_ACCOUNT = 'cf_account'
 const LS_PROVIDER = 'cf_provider'
 const LS_TOKEN_ADDR = 'cf_token_addr'
@@ -84,8 +83,7 @@ export default function App() {
   const [customAbi, setCustomAbi] = useState(localStorage.getItem(LS_CUSTOM_ABI) || '')
   const [mintMsg, setMintMsg] = useState('')
 
-  const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
-
+    const currentAddress = account || DEFAULT_ADDRESS\n
   useEffect(() => { localStorage.setItem(LS_TOKEN_ADDR, tokenAddr || '') }, [tokenAddr])
   useEffect(() => { localStorage.setItem(LS_NFT_ADDR, nftAddr || '') }, [nftAddr])
   useEffect(() => { localStorage.setItem(LS_MINT_FN, mintFn || '') }, [mintFn])
@@ -109,7 +107,7 @@ export default function App() {
 
   useEffect(() => { (async () => { const saved = localStorage.getItem(LS_PROVIDER); if (!saved) return; try { if (saved === 'coinbase') { await coinbaseConnect(setAccount, setChainId, setMessage, pushEvent) } else if (saved === 'injected' && window.ethereum) { const accs = await window.ethereum.request({ method: 'eth_accounts' }); const addr = accs?.[0]; if (addr) { setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); setChainId(await window.ethereum.request({ method: 'eth_chainId' })); setMessage('Reconnected'); pushEvent('wallet','Reconnected', addr) } } } catch {} })() }, [])
 
-  useEffect(() => { (async () => { try { if (!account) return; if (onBase && window.ethereum) { const wei = await window.ethereum.request({ method: 'eth_getBalance', params: [account, 'latest'] }); setBaseEth(formatEthFromHex(wei)) } else { const body = { jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [account, 'latest'] }; const res = await fetch(BASE_RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const json = await res.json(); setBaseEth(formatEthFromHex(json?.result)) } } catch { setBaseEth('') } })() }, [account, onBase])
+  useEffect(() => { (async () => { try { const addr = account || DEFAULT_ADDRESS; if (!addr) return; if (onBase && window.ethereum && account) { const wei = await window.ethereum.request({ method: 'eth_getBalance', params: [addr, 'latest'] }); setBaseEth(formatEthFromHex(wei)) } else { const body = { jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [addr, 'latest'] }; const res = await fetch(BASE_RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const json = await res.json(); setBaseEth(formatEthFromHex(json?.result)) } } catch { setBaseEth('') } })() }, [account, onBase])
 
   const connect = async () => { try { if (!window.ethereum) { setNoWallet(true); setMessage('No EVM wallet detected. Install Coinbase Wallet or MetaMask, or use the Coinbase deep link below.'); return } const accs = await window.ethereum.request({ method: 'eth_requestAccounts' }); const addr = accs?.[0] ?? ''; setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); localStorage.setItem(LS_PROVIDER, 'injected'); const cid = await window.ethereum.request({ method: 'eth_chainId' }); setChainId(cid); setMessage('Connected'); pushEvent('wallet','Injected connected', addr) } catch (err) { setMessage(err?.message || 'Connect failed') } }
 
@@ -228,3 +226,4 @@ export default function App() {
     </main>
   )
 }
+

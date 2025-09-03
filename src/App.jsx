@@ -5,7 +5,8 @@ const BASE_CHAIN_HEX = '0x2105'
 const BASE_RPC = 'https://mainnet.base.org'
 const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
 const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
- DEFAULT_ADDRESS = '0x4f8cf6b1397ef632Edf654C5E2d1c378F518F790'\n
+const DEFAULT_ADDRESS = '0x4f8cf6b1397ef632Edf654C5E2d1c378F518F790'
+
 const LS_ACCOUNT = 'cf_account'
 const LS_PROVIDER = 'cf_provider'
 const LS_TOKEN_ADDR = 'cf_token_addr'
@@ -226,4 +227,5 @@ export default function App() {
     </main>
   )
 }
+
 

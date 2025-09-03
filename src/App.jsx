@@ -120,7 +120,7 @@ export default function App() {
   // Base ETH balance
   useEffect(() => { (async () => { try { if (!account) return; if (onBase && window.ethereum) { const wei = await window.ethereum.request({ method: 'eth_getBalance', params: [account, 'latest'] }); setBaseEth(formatEthFromHex(wei)) } else { const body = { jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [account, 'latest'] }; const res = await fetch(BASE_RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const json = await res.json(); setBaseEth(formatEthFromHex(json?.result)) } } catch { setBaseEth('') } })() }, [account, onBase])
 
-  const connect = async () => { try { if (!window.ethereum) { setNoWallet(true); setMessage('No EVM wallet detected. Install Coinbase Wallet or MetaMask, or use the Coinbase deep link below.'); return } const accs = await window.ethereum.request({ method: 'eth_requestAccounts' }); const addr = accs?.[0] ?? ''; setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); localStorage.setItem(LS_PROVIDER, 'injected'); const cid = await window.ethereum.request({ method: 'eth_chainId' }); setChainId(cid); setMessage('Connected'); pushEvent('wallet','Injected connected', addr) } catch (err) { setMessage(err?.message || 'Connect failed') } }
+  const connect = async () => { try { if (!window.ethereum) { setNoWallet(true); setMessage('No EVM wallet detected. Install Coinbase Wallet || MetaMask, || use the Coinbase deep link below.'); return } const accs = await window.ethereum.request({ method: 'eth_requestAccounts' }); const addr = accs?.[0] ?? ''; setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); localStorage.setItem(LS_PROVIDER, 'injected'); const cid = await window.ethereum.request({ method: 'eth_chainId' }); setChainId(cid); setMessage('Connected'); pushEvent('wallet','Injected connected', addr) } catch (err) { setMessage(err?.message || 'Connect failed') } }
 
   const disconnect = () => { try { const addr = account; localStorage.removeItem(LS_ACCOUNT); localStorage.removeItem(LS_PROVIDER); setAccount(''); setChainId(''); setBaseEth(''); setTokenInfo({ symbol: '', decimals: 18, balance: '' }); setMessage('Disconnected'); pushEvent('wallet','Disconnected', addr || '') } catch {} }
 
@@ -133,7 +133,7 @@ export default function App() {
   const fetchToken = async () => { try { setTokenMsg(''); const { ethers } = await import('ethers'); if (!ethers.isAddress(tokenAddr)) { setTokenMsg('Invalid token address'); return } const abi = ['function symbol() view returns (string)','function decimals() view returns (uint8)','function balanceOf(address) view returns (uint256)']; const provider = new ethers.JsonRpcProvider(BASE_RPC); const erc20 = new ethers.Contract(tokenAddr, abi, provider); const [sym, dec, bal] = await Promise.all([erc20.symbol().catch(() => ''), erc20.decimals().catch(() => 18), erc20.balanceOf(account || ethers.ZeroAddress)]); let balanceStr = '0'; if (account) { balanceStr = ethers.formatUnits(bal, Number(dec)) } setTokenInfo({ symbol: sym || 'ERC20', decimals: Number(dec), balance: balanceStr }); pushEvent('token', 'Fetched token balance', `${(sym || 'ERC20')} @ ${tokenAddr.substring(0,6)}`) } catch (e) { setTokenMsg(e?.message || 'Failed to fetch token'); setTokenInfo({ symbol: '', decimals: 18, balance: '' }) } }
 
   // NFT mint (generic) with optional custom ABI
-  const mintNft = async () => { try { setMintMsg(''); const { ethers } = await import('ethers'); if (!account) { setMintMsg('Connect wallet first'); return } if (!ethers.isAddress(nftAddr)) { setMintMsg('Invalid NFT contract'); return } const provider = new ethers.BrowserProvider(window.ethereum); const signer = await provider.getSigner(); let abi; if (customAbi) { try { abi = JSON.parse(customAbi) } catch { setMintMsg('Invalid ABI JSON'); return } } else { const qty = mintQty && Number(mintQty) ? true : false; abi = qty ? [`function ${mintFn}(uint256)`] : [`function ${mintFn}()`] } const c = new ethers.Contract(nftAddr, abi, signer); const tx = (customAbi && mintQty && Number(mintQty)) ? await c[mintFn](BigInt(mintQty)) : (customAbi ? await c[mintFn]() : (Number(mintQty) ? await c[mintFn](BigInt(mintQty)) : await c[mintFn]())); setMintMsg('Submitted: ' + tx.hash); pushEvent('nft','Mint submitted', tx.hash); const rc = await tx.wait(); setMintMsg('Minted in block ' + rc.blockNumber); pushEvent('nft','Mint confirmed', `Block ${rc.blockNumber}`) } catch (e) { setMintMsg(e?.shortMessage or e?.message or 'Mint failed') } }
+  const mintNft = async () => { try { setMintMsg(''); const { ethers } = await import('ethers'); if (!account) { setMintMsg('Connect wallet first'); return } if (!ethers.isAddress(nftAddr)) { setMintMsg('Invalid NFT contract'); return } const provider = new ethers.BrowserProvider(window.ethereum); const signer = await provider.getSigner(); let abi; if (customAbi) { try { abi = JSON.parse(customAbi) } catch { setMintMsg('Invalid ABI JSON'); return } } else { const qty = mintQty && Number(mintQty) ? true : false; abi = qty ? [`function ${mintFn}(uint256)`] : [`function ${mintFn}()`] } const c = new ethers.Contract(nftAddr, abi, signer); const tx = (customAbi && mintQty && Number(mintQty)) ? await c[mintFn](BigInt(mintQty)) : (customAbi ? await c[mintFn]() : (Number(mintQty) ? await c[mintFn](BigInt(mintQty)) : await c[mintFn]())); setMintMsg('Submitted: ' + tx.hash); pushEvent('nft','Mint submitted', tx.hash); const rc = await tx.wait(); setMintMsg('Minted in block ' + rc.blockNumber); pushEvent('nft','Mint confirmed', `Block ${rc.blockNumber}`) } catch (e) { setMintMsg(e?.shortMessage || e?.message || 'Mint failed') } }
 
   return (
     <main style={{maxWidth: 980, margin: '40px auto', padding: '0 16px', lineHeight: 1.6}}>
@@ -150,7 +150,7 @@ export default function App() {
 
       {noWallet && (
         <div style={{background:'#fee', color:'#900', padding: '12px', borderRadius: 8, marginTop: 12}}>
-          <strong>No wallet detected.</strong> Install a wallet or open directly in Coinbase Wallet.
+          <strong>No wallet detected.</strong> Install a wallet || open directly in Coinbase Wallet.
           <div style={{marginTop: 8, display:'flex', gap: 8, flexWrap:'wrap'}}>
             <a href="https://chromewebstore.google.com/detail/coinbase-wallet-extension/hnfanknocfeofbddgcijnmhnfnkdnaad" target="_blank" rel="noreferrer">Get Coinbase Wallet Extension</a>
             <a href="https://metamask.io/download/" target="_blank" rel="noreferrer">Get MetaMask</a>
@@ -214,7 +214,7 @@ export default function App() {
         </aside>
       </div>
 
-      <p style={{marginTop: 32}}>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, or burned  every action shaping a self-sustaining economy designed to reward its community.</p>
+      <p style={{marginTop: 32}}>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, || burned  every action shaping a self-sustaining economy designed to reward its community.</p>
       <p>At its core lies an AI-operated banking system, engineered to remove human error and run with flawless precision. Protected by Legion Cyber-Circuitry, this intelligence operates with 24/7 autonomous detection and defense, ensuring every transaction is secure, transparent, and unstoppable.</p>
       <p>Every move strengthens the system:</p>
       <ul>
@@ -228,3 +228,4 @@ export default function App() {
     </main>
   )
 }
+

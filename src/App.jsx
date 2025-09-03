@@ -4,7 +4,7 @@ import './App.css'
 const BASE_CHAIN_HEX = '0x2105' // 8453
 const BASE_RPC = 'https://mainnet.base.org'
 const DAPP_URL = 'https://alexcruz3333.github.io/cursed-faction-vite-app/'
-
+const COINBASE_DAPP_LINK = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(DAPP_URL)}`
 const SERVER_LOG_URL = '' // set to your server endpoint to enable logging
 
 // LocalStorage keys
@@ -74,8 +74,22 @@ export default function App() {
     { t: new Date().toISOString(), kind:'economy', title:'Profit pool seeded', desc:'2% pool initialized for holders' },
   ])
   const safeLog = (evt) => { if (!SERVER_LOG_URL) return; try { fetch(SERVER_LOG_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) }).catch(()=>{}) } catch {} }
-  
-  const downloadFeed = () => { try { const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'cursed-faction-activity-' + Date.now() + '.json'; a.click(); URL.revokeObjectURL(url); } catch {} }
+  const pushEvent = (kind, title, desc) => { const evt = { t:new Date().toISOString(), kind, title, desc }; setFeed((f)=>[evt, ...f].slice(0,20)); safeLog(evt) }
+  const downloadFeed = () => {
+    try {
+      const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'cursed-faction-activity-' + Date.now() + '.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {}
+  }
+
+  // ERC-20 state (persisted)
+  const [tokenAddr, setTokenAddr] = useState(localStorage.getItem(LS_TOKEN_ADDR) || '')
+  const [tokenInfo, setTokenInfo] = useState({ symbol: '', decimals: 18, balance: '' })
   const [tokenMsg, setTokenMsg] = useState('')
 
   // NFT mint state (persisted)
@@ -220,6 +234,8 @@ export default function App() {
   }
 
   // ERC-20 balance fetch (lazy-load ethers)
+  const [tokenInfo, setTokenInfo] = useState({ symbol: '', decimals: 18, balance: '' })
+  const [tokenMsg, setTokenMsg] = useState('')
   const fetchToken = async () => {
     try {
       setTokenMsg('')
@@ -242,7 +258,7 @@ export default function App() {
         balanceStr = ethers.formatUnits(bal, Number(dec))
       }
       setTokenInfo({ symbol: sym || 'ERC20', decimals: Number(dec), balance: balanceStr })
-      pushEvent('token', 'Fetched token balance', `${sym || 'ERC20'} @ ${tokenAddr.substring(0,6)}`)
+      pushEvent('token', 'Fetched token balance', `${(sym || 'ERC20')} @ ${tokenAddr.substring(0,6)}`)
     } catch (e) {
       setTokenMsg(e?.message || 'Failed to fetch token')
       setTokenInfo({ symbol: '', decimals: 18, balance: '' })
@@ -250,6 +266,12 @@ export default function App() {
   }
 
   // NFT mint (generic) with optional custom ABI
+  const [tokenAddr, setTokenAddr] = useState(localStorage.getItem(LS_TOKEN_ADDR) || '')
+  const [nftAddr, setNftAddr] = useState(localStorage.getItem(LS_NFT_ADDR) || '')
+  const [mintFn, setMintFn] = useState(localStorage.getItem(LS_MINT_FN) || 'mint')
+  const [mintQty, setMintQty] = useState(localStorage.getItem(LS_MINT_QTY) || '1')
+  const [customAbi, setCustomAbi] = useState(localStorage.getItem(LS_CUSTOM_ABI) || '')
+  const [mintMsg, setMintMsg] = useState('')
   const mintNft = async () => {
     try {
       setMintMsg('')
@@ -258,7 +280,6 @@ export default function App() {
       if (!ethers.isAddress(nftAddr)) { setMintMsg('Invalid NFT contract'); return }
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
-
       let abi
       if (customAbi) {
         try { abi = JSON.parse(customAbi) } catch { setMintMsg('Invalid ABI JSON'); return }
@@ -266,7 +287,6 @@ export default function App() {
         const qty = mintQty && Number(mintQty) ? true : false
         abi = qty ? [`function ${mintFn}(uint256)`] : [`function ${mintFn}()`]
       }
-
       const c = new ethers.Contract(nftAddr, abi, signer)
       const tx = (customAbi && mintQty && Number(mintQty))
         ? await c[mintFn](BigInt(mintQty))
@@ -289,8 +309,8 @@ export default function App() {
           {!account && <button onClick={connect}>Connect Wallet</button>}
           {!account && <button onClick={handleCoinbase}>Coinbase Wallet</button>}
           {!account && <button onClick={openCoinbaseDeepLink}>Open in Coinbase Wallet</button>}
-          {account && <button onClick={switchToBase} disabled={onBase}>{onBase ? 'On Base' : 'Switch to Base'}</button>}
-          {account && <button onClick={disconnect}>Disconnect</button>}
+          {account and <button onClick={switchToBase} disabled={onBase}>{onBase ? 'On Base' : 'Switch to Base'}</button>}
+          {account and <button onClick={disconnect}>Disconnect</button>}
         </div>
       </header>
 
@@ -316,10 +336,8 @@ export default function App() {
         </p>
       )}
 
-      {/* Two-column layout: left = actions, right = activity */}
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, alignItems:'start', marginTop:16}}>
         <div>
-          {/* ERC-20 balances */}
           <section style={{marginTop: 8}}>
             <h2>Token balance (Base)</h2>
             <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
@@ -332,7 +350,6 @@ export default function App() {
             )}
           </section>
 
-          {/* NFT mint */}
           <section style={{marginTop: 24}}>
             <h2>NFT Mint</h2>
             <div style={{display:'grid', gap:8, gridTemplateColumns:'1fr 1fr 1fr'}}>
@@ -345,16 +362,14 @@ export default function App() {
             </div>
             <div style={{marginTop:8}}>
               <button onClick={mintNft} disabled={!nftAddr || !mintFn}>Mint</button>
-              {mintMsg && <p>{mintMsg}</p>}
+              {mintMsg and <p>{mintMsg}</p>}
             </div>
           </section>
         </div>
 
-        {/* Activity feed */}
         <aside>
           <h2 style={{marginTop:8}}>Activity</h2>
           <div style={{marginBottom:8}}><button onClick={downloadFeed}>Download Activity JSON</button></div>
-          <div style={{marginBottom:8}}><button onClick={() => { try { const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = cursed-faction-activity-.json; a.click(); URL.revokeObjectURL(url); } catch {} }}>Download Activity JSON</button></div>
           <div style={{display:'grid', gap:8}}>
             {feed.map((e, idx) => (
               <div key={idx} style={{border:'1px solid #e3e8ef', borderRadius:8, padding:'8px 12px', background:'#f9fbfd'}}>
@@ -381,4 +396,3 @@ export default function App() {
     </main>
   )
 }
-

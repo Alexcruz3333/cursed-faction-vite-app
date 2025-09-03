@@ -87,7 +87,7 @@ export default function App() {
 
       <p>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, or burned  every action shaping a self-sustaining economy designed to reward its community.</p>
       <p>At its core lies an AI-operated banking system, engineered to remove human error and run with flawless precision. Protected by Legion Cyber-Circuitry, this intelligence operates with 24/7 autonomous detection and defense, ensuring every transaction is secure, transparent, and unstoppable.</p>
-      <p>Every move strengthens the system:</n      </p>
+      <p>Every move strengthens the system:</p>
       <ul>
         <li><strong>5% Compliance Fee</strong>  automatically secured for real-world tax reporting.</li>
         <li><strong>5% Ecosystem Fee</strong>  reinvested back into the Cursed Faction economy, driving upgrades, innovation, and player rewards.</li>
@@ -99,3 +99,4 @@ export default function App() {
     </main>
   )
 }
+

@@ -223,6 +223,16 @@ export default function App() {
         </ul>
       </section>
 
+      <section style={{marginTop: 24}}>
+        <h2>Links</h2>
+        <ul>
+          <li><a href="https://gravatar.com/fortunately8d88940533" target="_blank" rel="noreferrer">Gravatar: Cursed Faction</a></li>
+          <li><a href="https://www.npmjs.com/~cursedfaction3333?activeTab=packages" target="_blank" rel="noreferrer">npm: cursedfaction3333</a></li>
+          <li><a href="https://www.youtube.com/" target="_blank" rel="noreferrer">YouTube</a></li>
+          <li><a href="https://portal.cdp.coinbase.com/projects/overview?projectId=87f16c1b-8c85-4b6e-ba40-89d893f5dba9" target="_blank" rel="noreferrer">Coinbase CDP Project</a></li>
+          <li><a href="https://alexcruz3333.github.io/cursed-faction-vite-app/" target="_blank" rel="noreferrer">Live Site</a></li>
+        </ul>
+      </section>
       <p style={{marginTop: 32}}>Welcome to the next evolution of digital finance, where every NFT is more than a collectible  its a living asset in a world built on power, trust, and innovation. Inside the Cursed Faction universe, your NFTs can be bought, sold, traded, gifted, || burned  every action shaping a self-sustaining economy designed to reward its community.</p>
       <p>At its core lies an AI-operated banking system, engineered to remove human error and run with flawless precision. Protected by Legion Cyber-Circuitry, this intelligence operates with 24/7 autonomous detection and defense, ensuring every transaction is secure, transparent, and unstoppable.</p>
       <p>Every move strengthens the system:</p>
@@ -237,6 +247,7 @@ export default function App() {
     </main>
   )
 }
+
 
 
 

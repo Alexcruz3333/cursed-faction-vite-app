@@ -74,11 +74,8 @@ export default function App() {
     { t: new Date().toISOString(), kind:'economy', title:'Profit pool seeded', desc:'2% pool initialized for holders' },
   ])
   const safeLog = (evt) => { if (!SERVER_LOG_URL) return; try { fetch(SERVER_LOG_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) }).catch(()=>{}) } catch {} }
-  const pushEvent = (kind, title, desc) => { const evt = { t:new Date().toISOString(), kind, title, desc }; setFeed((f)=>[evt, ...f].slice(0,20)); safeLog(evt) }
-
-  // ERC-20 state (persisted)
-  const [tokenAddr, setTokenAddr] = useState(localStorage.getItem(LS_TOKEN_ADDR) || '')
-  const [tokenInfo, setTokenInfo] = useState({ symbol: '', decimals: 18, balance: '' })
+  
+  const downloadFeed = () => { try { const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'cursed-faction-activity-' + Date.now() + '.json'; a.click(); URL.revokeObjectURL(url); } catch {} }
   const [tokenMsg, setTokenMsg] = useState('')
 
   // NFT mint state (persisted)
@@ -356,6 +353,7 @@ export default function App() {
         {/* Activity feed */}
         <aside>
           <h2 style={{marginTop:8}}>Activity</h2>
+          <div style={{marginBottom:8}}><button onClick={downloadFeed}>Download Activity JSON</button></div>
           <div style={{marginBottom:8}}><button onClick={() => { try { const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = cursed-faction-activity-.json; a.click(); URL.revokeObjectURL(url); } catch {} }}>Download Activity JSON</button></div>
           <div style={{display:'grid', gap:8}}>
             {feed.map((e, idx) => (
@@ -383,3 +381,4 @@ export default function App() {
     </main>
   )
 }
+

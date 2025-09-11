@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react'
 import './App.css'
+import ShadowRealmTerminal from '../cursed-faction-shadow-realm-game/ShadowRealmTerminal.jsx'
 
 const BASE_CHAIN_HEX = '0x2105'
 const BASE_RPC = 'https://mainnet.base.org'
@@ -207,6 +208,12 @@ export default function App() {
           </div>
         </aside>
       </div>
+
+      <section style={{marginTop: 24}}>
+        <h2>Shadow Realm Terminal</h2>
+        <p>Enter the Shadow Realm and interact with the cursed terminal. Type commands to explore the dark dimensions.</p>
+        <ShadowRealmTerminal />
+      </section>
 
       <section style={{marginTop: 24}}>
         <h2>Links</h2>

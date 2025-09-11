@@ -64,13 +64,22 @@ export default function App() {
   const [chainId, setChainId] = useState('')
   const [message, setMessage] = useState('')
   const [baseEth, setBaseEth] = useState('')
-    const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX\n
+  const [noWallet, setNoWallet] = useState(false)
+  const onBase = chainId?.toLowerCase() === BASE_CHAIN_HEX
   const [feed, setFeed] = useState([
     { t: new Date().toISOString(), kind:'system', title:'Vault online', desc:'AI banking system initialized' },
     { t: new Date().toISOString(), kind:'economy', title:'Profit pool seeded', desc:'2% pool initialized for holders' },
   ])
-  const safeLog = (evt) => {\n  try {\n    // eslint-disable-next-line no-undef\n    const url = SERVER_LOG_URL;\n    if (!url) return;\n    fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) }).catch(()=>{})\n  } catch (e) { /* noop */ }\n}\n  const pushEvent = (kind, title, desc) => { const evt = { t:new Date().toISOString(), kind, title, desc }; setFeed((f)=>[evt, ...f].slice(0,20)); safeLog(evt) }
-  const downloadFeed = () => { try { const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'cursed-faction-activity-' + Date.now() + '.json'; a.click(); URL.revokeObjectURL(url); } catch (e) { /* noop */ } }
+  const safeLog = (evt) => {
+    try {
+      // eslint-disable-next-line no-undef
+      const url = SERVER_LOG_URL;
+      if (!url) return;
+      fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) }).catch(()=>{})
+    } catch (_e) { /* noop */ }
+  }
+  const pushEvent = (kind, title, desc) => { const evt = { t:new Date().toISOString(), kind, title, desc }; setFeed((f)=>[evt, ...f].slice(0,20)); safeLog(evt) }
+  const downloadFeed = () => { try { const blob = new Blob([JSON.stringify(feed, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'cursed-faction-activity-' + Date.now() + '.json'; a.click(); URL.revokeObjectURL(url); } catch (_e) { /* noop */ } }
 
   const [tokenAddr, setTokenAddr] = useState(localStorage.getItem(LS_TOKEN_ADDR) || '')
   const [tokenInfo, setTokenInfo] = useState({ symbol: '', decimals: 18, balance: '' })
@@ -82,7 +91,7 @@ export default function App() {
   const [customAbi, setCustomAbi] = useState(localStorage.getItem(LS_CUSTOM_ABI) || '')
   const [mintMsg, setMintMsg] = useState('')
 
-    const currentAddress = account || DEFAULT_ADDRESS
+  const _currentAddress = account || DEFAULT_ADDRESS
   useEffect(() => { localStorage.setItem(LS_TOKEN_ADDR, tokenAddr || '') }, [tokenAddr])
   useEffect(() => { localStorage.setItem(LS_NFT_ADDR, nftAddr || '') }, [nftAddr])
   useEffect(() => { localStorage.setItem(LS_MINT_FN, mintFn || '') }, [mintFn])
@@ -104,13 +113,13 @@ export default function App() {
     }
   }, [])
 
-  useEffect(() => { (async () => { const saved = localStorage.getItem(LS_PROVIDER); if (!saved) return; try { if (saved === 'coinbase') { await coinbaseConnect(setAccount, setChainId, setMessage, pushEvent) } else if (saved === 'injected' && window.ethereum) { const accs = await window.ethereum.request({ method: 'eth_accounts' }); const addr = accs?.[0]; if (addr) { setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); setChainId(await window.ethereum.request({ method: 'eth_chainId' })); setMessage('Reconnected'); pushEvent('wallet','Reconnected', addr) } } } catch (e) { /* noop */ } })() }, [])
+  useEffect(() => { (async () => { const saved = localStorage.getItem(LS_PROVIDER); if (!saved) return; try { if (saved === 'coinbase') { await coinbaseConnect(setAccount, setChainId, setMessage, pushEvent) } else if (saved === 'injected' && window.ethereum) { const accs = await window.ethereum.request({ method: 'eth_accounts' }); const addr = accs?.[0]; if (addr) { setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); setChainId(await window.ethereum.request({ method: 'eth_chainId' })); setMessage('Reconnected'); pushEvent('wallet','Reconnected', addr) } } } catch (_e) { /* noop */ } })() }, [])
 
   useEffect(() => { (async () => { try { const addr = account || DEFAULT_ADDRESS; if (!addr) return; if (onBase && window.ethereum && account) { const wei = await window.ethereum.request({ method: 'eth_getBalance', params: [addr, 'latest'] }); setBaseEth(formatEthFromHex(wei)) } else { const body = { jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [addr, 'latest'] }; const res = await fetch(BASE_RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const json = await res.json(); setBaseEth(formatEthFromHex(json?.result)) } } catch { setBaseEth('') } })() }, [account, onBase])
 
   const connect = async () => { try { if (!window.ethereum) { setNoWallet(true); setMessage('No EVM wallet detected. Install Coinbase Wallet or MetaMask, or use the Coinbase deep link below.'); return } const accs = await window.ethereum.request({ method: 'eth_requestAccounts' }); const addr = accs?.[0] ?? ''; setAccount(addr); localStorage.setItem(LS_ACCOUNT, addr); localStorage.setItem(LS_PROVIDER, 'injected'); const cid = await window.ethereum.request({ method: 'eth_chainId' }); setChainId(cid); setMessage('Connected'); pushEvent('wallet','Injected connected', addr) } catch (err) { setMessage(err?.message || 'Connect failed') } }
 
-  const disconnect = () => { try { const addr = account; localStorage.removeItem(LS_ACCOUNT); localStorage.removeItem(LS_PROVIDER); setAccount(''); setChainId(''); setBaseEth(''); setTokenInfo({ symbol: '', decimals: 18, balance: '' }); setMessage('Disconnected'); pushEvent('wallet','Disconnected', addr || '') } catch (e) { /* noop */ } }
+  const disconnect = () => { try { const addr = account; localStorage.removeItem(LS_ACCOUNT); localStorage.removeItem(LS_PROVIDER); setAccount(''); setChainId(''); setBaseEth(''); setTokenInfo({ symbol: '', decimals: 18, balance: '' }); setMessage('Disconnected'); pushEvent('wallet','Disconnected', addr || '') } catch (_e) { /* noop */ } }
 
   const handleCoinbase = () => { coinbaseConnect(setAccount, setChainId, setMessage, pushEvent) }
   const openCoinbaseDeepLink = () => window.open(COINBASE_DAPP_LINK, '_blank')
